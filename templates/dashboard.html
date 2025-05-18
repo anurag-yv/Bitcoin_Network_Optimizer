@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Bitcoin Network Optimizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1"></script>
+    <style>
+        .gradient-card {
+            background: linear-gradient(145deg, #1f2937, #111827);
+            border: 1px solid #374151;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .gradient-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+        .animated-progress {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        canvas {
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <div class="text-center mb-12">
+            <h1 class="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
+                Bitcoin Network Optimizer
+            </h1>
+            <p class="text-gray-400">Real-Time Transaction Management & Network Insights</p>
+        </div>
+
+        <!-- Problem-Solving Features Grid -->
+        <div class="grid lg:grid-cols-4 gap-6 mb-8">
+            <!-- Fee Optimizer Card -->
+            <div class="gradient-card p-6 rounded-xl">
+                <h3 class="text-xl font-bold mb-4">Fee Optimizer</h3>
+                <div class="mb-4">
+                    <div class="flex justify-between text-sm text-gray-400 mb-2">
+                        <span>Current Fee Range</span>
+                        <span id="currentFeeRange">-</span>
+                    </div>
+                    <div class="relative h-2 bg-gray-700 rounded-full">
+                        <div id="feeRangeBar" class="absolute h-2 bg-green-500 rounded-full animated-progress"></div>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    <div>Recommended Fee: <span id="recommendedFee" class="text-green-400">-</span></div>
+                    <div>Potential Savings: <span id="feeSavings" class="text-green-400">-</span></div>
+                </div>
+            </div>
+
+            <!-- Transaction Scheduler -->
+            <div class="gradient-card p-6 rounded-xl">
+                <h3 class="text-xl font-bold mb-4">Smart Scheduler</h3>
+                <div class="mb-4">
+                    <div class="text-sm text-gray-400 mb-2">Optimal Transaction Window</div>
+                    <div id="optimalWindow" class="text-2xl font-mono text-yellow-500">-</div>
+                </div>
+                <div class="text-sm text-gray-400">
+                    Next Low-Fee Period in: <span id="nextLowFee" class="text-yellow-500">-</span>
+                </div>
+            </div>
+
+            <!-- Network Health -->
+            <div class="gradient-card p-6 rounded-xl">
+                <h3 class="text-xl font-bold mb-4">Network Health</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Mempool Size</span>
+                        <span id="mempoolSize" class="font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Hash Rate</span>
+                        <span id="hashRate" class="font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Transactions/Hour</span>
+                        <span id="txRate" class="font-mono">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Network Difficulty -->
+            <div class="gradient-card p-6 rounded-xl">
+                <h3 class="text-xl font-bold mb-4">Network Difficulty</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Current Difficulty</span>
+                        <span id="networkDifficulty" class="font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Last Adjustment</span>
+                        <span id="difficultyAdjustment" class="font-mono">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid lg:grid-cols-2 gap-6 mb-8">
+            <!-- Fee Heatmap -->
+            <div class="gradient-card p-6 rounded-xl">
+                <h3 class="text-xl font-bold mb-4">Fee Heatmap (24h)</h3>
+                <div class="h-96">
+                    <canvas id="feeHeatmap"></canvas>
+                </div>
+            </div>
+            <!-- Mempool Activity -->
+            <div class="gradient-card p-6 rounded-xl">
+                <h3 class="text-xl font-bold mb-4">Mempool Activity (60m)</h3>
+                <div class="h-96">
+                    <canvas id="mempoolChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transaction Volume Chart -->
+        <div class="gradient-card p-6 rounded-xl mb-8">
+            <h3 class="text-xl font-bold mb-4">Transaction Volume (24h)</h3>
+            <div class="h-96">
+                <canvas id="txVolumeChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Transaction Simulator -->
+        <div class="gradient-card p-6 rounded-xl">
+            <h3 class="text-xl font-bold mb-4">Transaction Simulator</h3>
+            <div class="grid lg:grid-cols-2 gap-6">
+                <div>
+                    <div class="relative h-2 bg-gray-700 rounded-full mb-4">
+                        <div id="txProgress" class="absolute h-2 bg-blue-500 rounded-full animated-progress w-0"></div>
+                    </div>
+                    <div class="flex justify-between text-sm text-gray-400 mb-8">
+                        <span>Priority: Low</span>
+                        <span>Priority: High</span>
+                    </div>
+                    <button onclick="simulateTransaction()" 
+                            class="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-lg transition-colors duration-300">
+                        Simulate Transaction
+                    </button>
+                </div>
+                <div>
+                    <div class="text-sm text-gray-400 mb-2">Simulation Results</div>
+                    <div id="simulationResults" class="space-y-2">
+                        <div class="flex justify-between">
+                            <span>Estimated Confirmation:</span>
+                            <span id="estConfirmation" class="font-mono">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Cost Efficiency:</span>
+                            <span id="costEfficiency" class="font-mono">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
