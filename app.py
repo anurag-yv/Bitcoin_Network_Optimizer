@@ -249,14 +249,12 @@ def user():
     return render_template('user.html')
 
 @app.route('/session')
-def get_session():
-    try:
-        username = session.get('username')
-        logger.info(f"Session check: username={username}")
-        return jsonify({'username': username if username else None}), 200
-    except Exception as e:
-        logger.error(f"Error in session endpoint: {e}")
-        return jsonify({'username': None}), 200
+def session_check():
+    username = session.get('username')
+    if username:
+        return jsonify(username=username)
+    else:
+        return jsonify(error="Not logged in"), 401
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -368,20 +366,28 @@ def run_websocket_server():
     loop.run_until_complete(start_websocket_server())
     loop.run_forever()
 
+if __name__ == "__main__":
+    ws_thread = threading.Thread(target=run_websocket_server, daemon=True)
+    ws_thread.start()
+    
+    app.run(debug=True)
+
+
 def free_port(port):
     try:
         for conn in psutil.net_connections():
-            if conn.laddr.port == port and conn.pid:
-                try:
-                    proc = psutil.Process(conn.pid)
-                    proc.terminate()
-                    proc.wait(timeout=3)
-                except psutil.NoSuchProcess:
-                    pass
-                except Exception as e:
-                    logger.error(f"Error terminating process on port {port}: {e}")
+            if conn.laddr.port == port:
+                pid = conn.pid
+                if pid:
+                    p = psutil.Process(pid)
+                    p.terminate()  # or p.kill()
+                    logger.info(f"Terminated process {pid} using port {port}")
+                return True
+        return False
     except Exception as e:
         logger.error(f"Error freeing port {port}: {e}")
+        return False
+
 
 if __name__ == '__main__':
     free_port(8765)

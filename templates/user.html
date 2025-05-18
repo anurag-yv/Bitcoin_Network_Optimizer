@@ -98,6 +98,7 @@
 
         async function login() {
             try {
+                console.log('Login attempt');
                 const username = document.getElementById('login-username').value;
                 const password = document.getElementById('login-password').value;
                 const errorElement = document.getElementById('login-error');
@@ -119,12 +120,10 @@
                 console.log('Login response:', { status: response.status, data });
 
                 if (response.ok) {
-                    // Delay redirect to ensure session cookie is set
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 500);
+                    localStorage.setItem('username', username);
+                    window.location.href = 'dashboard.html';
                 } else {
-                    errorElement.textContent = data.error || 'Login failed';
+                    errorElement.textContent = data.error || 'Invalid username or password';
                     errorElement.classList.remove('hidden');
                 }
             } catch (error) {
@@ -136,6 +135,7 @@
 
         async function register() {
             try {
+                console.log('Register attempt');
                 const username = document.getElementById('register-username').value;
                 const password = document.getElementById('register-password').value;
                 const confirmPassword = document.getElementById('confirm-password').value;

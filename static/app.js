@@ -12,6 +12,77 @@ const FALLBACK_DATA = {
     adjustmentTime: new Date().toISOString()
 };
 
+// Debug: Log script load
+console.log('app.js loaded at', new Date().toISOString());
+
+// Update Auth UI
+function updateAuthUI() {
+    console.log('updateAuthUI called');
+    const loginBtn = document.getElementById('login-btn');
+    const registerBtn = document.getElementById('register-btn');
+    const usernameDisplay = document.getElementById('username-display');
+    const logoutBtn = document.getElementById('logout-btn');
+    const authSection = document.getElementById('auth-section');
+    const username = localStorage.getItem('username');
+
+    console.log('Username from localStorage:', username);
+
+    if (username && usernameDisplay && authSection) {
+        console.log('Updating UI for logged-in user:', username);
+        if (loginBtn) loginBtn.remove();
+        if (registerBtn) registerBtn.remove();
+        usernameDisplay.classList.remove('hidden');
+        if (logoutBtn) logoutBtn.classList.remove('hidden');
+        usernameDisplay.classList.add('bg-gradient-to-r', 'from-green-400', 'to-blue-500', 'text-gray-900', 'px-4', 'py-2', 'rounded-lg');
+        usernameDisplay.textContent = username;
+    } else {
+        console.log('Updating UI for logged-out state');
+        if (!loginBtn && authSection) {
+            const newLoginBtn = document.createElement('a');
+            newLoginBtn.id = 'login-btn';
+            newLoginBtn.href = 'user.html';
+            newLoginBtn.className = 'bg-gradient-to-r from-green-400 to-blue-500 text-gray-900 px-4 py-2 rounded-lg hover:from-green-500 hover:to-blue-600 transition';
+            newLoginBtn.textContent = 'Login';
+            authSection.insertBefore(newLoginBtn, usernameDisplay);
+        }
+        if (!registerBtn && authSection) {
+            const newRegisterBtn = document.createElement('a');
+            newRegisterBtn.id = 'register-btn';
+            newRegisterBtn.href = 'user.html';
+            newRegisterBtn.className = 'bg-gray-700 text-gray-100 px-4 py-2 rounded-lg hover:bg-gray-600 transition';
+            newRegisterBtn.textContent = 'Register';
+            authSection.insertBefore(newRegisterBtn, usernameDisplay);
+        }
+        if (usernameDisplay) {
+            usernameDisplay.classList.add('hidden');
+            usernameDisplay.classList.remove('bg-gradient-to-r', 'from-green-400', 'to-blue-500', 'text-gray-900', 'px-4', 'py-2', 'rounded-lg');
+            usernameDisplay.textContent = '';
+        }
+        if (logoutBtn) logoutBtn.classList.add('hidden');
+    }
+}
+
+// Logout function
+async function logout() {
+    try {
+        console.log('Initiating logout');
+        const response = await fetch(`${API_BASE_URL}/logout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+        });
+        console.log('Logout response status:', response.status);
+        localStorage.removeItem('username');
+        updateAuthUI();
+        window.location.href = 'user.html';
+    } catch (error) {
+        console.error('Logout error:', error.message, error.stack);
+        localStorage.removeItem('username');
+        updateAuthUI();
+        window.location.href = 'user.html';
+    }
+}
+
 function connectWebSocket() {
     let ports = [8765, 8766];
     let currentPortIndex = 0;
@@ -53,6 +124,7 @@ function connectWebSocket() {
 
 function updateDashboard(data) {
     try {
+        console.log('Updating dashboard with data:', data);
         document.getElementById('currentFeeRange').textContent = `${data.fees.hourFee} - ${data.fees.fastestFee} sat/vB`;
         document.getElementById('recommendedFee').textContent = `${data.fees.hourFee} sat/vB`;
         document.getElementById('feeSavings').textContent = `${data.savings.toFixed(6)} BTC`;
@@ -72,7 +144,9 @@ function updateDashboard(data) {
 
 async function fetchNetworkData() {
     try {
+        console.log('Fetching network data');
         const res = await fetch(`${API_BASE_URL}/network-data`, { credentials: 'include' });
+        console.log('Network data response status:', res.status);
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const data = await res.json();
         if (!data.fees || !data.mempool) {
@@ -89,7 +163,9 @@ async function fetchNetworkData() {
 
 async function loadFeeHistory() {
     try {
+        console.log('Fetching fee history');
         const res = await fetch(`${API_BASE_URL}/fee-history`, { credentials: 'include' });
+        console.log('Fee history response status:', res.status);
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const history = await res.json();
         if (!Array.isArray(history) || history.length === 0) {
@@ -116,7 +192,9 @@ async function loadFeeHistory() {
 
 async function loadMempoolHistory() {
     try {
+        console.log('Fetching mempool history');
         const res = await fetch(`${API_BASE_URL}/mempool-history`, { credentials: 'include' });
+        console.log('Mempool history response status:', res.status);
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const history = await res.json();
         if (!Array.isArray(history) || history.length === 0) {
@@ -143,7 +221,9 @@ async function loadMempoolHistory() {
 
 async function loadTxVolumeHistory() {
     try {
+        console.log('Fetching transaction volume history');
         const res = await fetch(`${API_BASE_URL}/tx-volume-history`, { credentials: 'include' });
+        console.log('Tx volume history response status:', res.status);
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const history = await res.json();
         if (!Array.isArray(history) || history.length === 0) {
@@ -177,6 +257,7 @@ function createGradient(ctx, chartArea) {
 
 function initCharts() {
     try {
+        console.log('Initializing charts');
         const feeCtx = document.getElementById('feeHeatmap').getContext('2d');
         feeChart = new Chart(feeCtx, {
             type: 'line',
@@ -361,6 +442,7 @@ function initCharts() {
 
 function simulateTransaction() {
     try {
+        console.log('Simulating transaction');
         const confirmation = Math.floor(Math.random() * 60) + 1;
         const efficiency = `${Math.floor(Math.random() * 100)}%`;
 
@@ -374,7 +456,9 @@ function simulateTransaction() {
 
 async function determineNextLowFeeWindow() {
     try {
+        console.log('Fetching low fee window');
         const res = await fetch(`${API_BASE_URL}/fee-history`, { credentials: 'include' });
+        console.log('Fee history response status:', res.status);
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const history = await res.json();
         if (!Array.isArray(history) || history.length === 0) {
@@ -385,7 +469,7 @@ async function determineNextLowFeeWindow() {
         const now = new Date();
         const lowFeeEntries = history
             .filter(h => h.hourFee < 15)
-            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Latest first
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
         const optimalWindow = document.getElementById('optimalWindow');
         const nextLowFee = document.getElementById('nextLowFee');
@@ -396,9 +480,9 @@ async function determineNextLowFeeWindow() {
         }
 
         if (lowFeeEntries.length > 0) {
-            const lowFeeEntry = lowFeeEntries[0]; // Latest low-fee period
+            const lowFeeEntry = lowFeeEntries[0];
             const ts = new Date(lowFeeEntry.timestamp);
-            const mins = Math.round((now - ts) / 60000); // Time since low fee
+            const mins = Math.round((now - ts) / 60000);
             console.log(`Low fee found at ${ts.toLocaleTimeString()}, ${mins} min ago, hourFee: ${lowFeeEntry.hourFee}`);
 
             optimalWindow.textContent = ts.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -421,6 +505,7 @@ async function determineNextLowFeeWindow() {
 
 async function refreshDashboard() {
     try {
+        console.log('Refreshing dashboard');
         await Promise.all([
             fetchNetworkData(),
             loadFeeHistory(),
@@ -433,14 +518,21 @@ async function refreshDashboard() {
     }
 }
 
-// INIT
-document.addEventListener('DOMContentLoaded', async () => {
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
     try {
+        console.log('DOM loaded, initializing');
+        updateAuthUI();
         initCharts();
         connectWebSocket();
-        await refreshDashboard();
-        setInterval(refreshDashboard, 60000);  // Refresh every minute
+        refreshDashboard();
+        setInterval(refreshDashboard, 60000);
+
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', logout);
+        }
     } catch (e) {
-        console.error('Error initializing dashboard:', e);
+        console.error('Error during initialization:', e);
     }
 });

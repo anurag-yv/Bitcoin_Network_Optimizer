@@ -47,7 +47,6 @@
                 <a href="user.html" id="register-btn" class="bg-gray-700 text-gray-100 px-4 py-2 rounded-lg hover:bg-gray-600 transition">Register</a>
                 <span id="username-display" class="text-gray-100 px-4 py-2 hidden"></span>
                 <button id="logout-btn" class="bg-red-600 text-gray-100 px-4 py-2 rounded-lg hover:bg-red-700 transition hidden">Logout</button>
-                <button id="debug-session-btn" class="bg-yellow-600 text-gray-900 px-4 py-2 rounded-lg hover:bg-yellow-700 transition hidden">Debug Session</button>
             </div>
         </div>
 
@@ -141,7 +140,7 @@
             <h3 class="text-xl font-bold mb-4">Transaction Volume (60m)</h3>
             <div class="h-96">
                 <canvas id="txVolumeChart"></canvas>
-            </div>
+                </div>
         </div>
 
         <!-- Transaction Simulator -->
@@ -178,160 +177,25 @@
         </div>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="../static/app.js"></script>
     <script>
-        // Base URL for API requests
-        const API_BASE_URL = 'http://localhost:5000';
-
-        // Update UI based on session state
-        function updateUI(username) {
-            const loginBtn = document.getElementById('login-btn');
-            const registerBtn = document.getElementById('register-btn');
-            const usernameDisplay = document.getElementById('username-display');
-            const logoutBtn = document.getElementById('logout-btn');
-            const debugBtn = document.getElementById('debug-session-btn');
-
-            if (username) {
-                console.log('Updating UI for logged-in user:', username);
-                loginBtn.classList.add('hidden');
-                registerBtn.classList.add('hidden');
-                usernameDisplay.classList.remove('hidden');
-                logoutBtn.classList.remove('hidden');
-                debugBtn.classList.add('hidden');
-                usernameDisplay.textContent = `Welcome, ${username}`;
-            } else {
-                console.log('Updating UI for logged-out state');
-                loginBtn.classList.remove('hidden');
-                registerBtn.classList.remove('hidden');
-                usernameDisplay.classList.add('hidden');
-                logoutBtn.classList.add('hidden');
-                debugBtn.classList.remove('hidden');
-                usernameDisplay.textContent = '';
-            }
-        }
-
-        // Check session status
-        async function checkSessionSingle(attempt = 1) {
-            try {
-                console.log(`Session check attempt ${attempt} at`, new Date().toISOString());
-                const response = await fetch(`${API_BASE_URL}/session`, {
-                    method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include'
-                });
-
-                console.log('Session fetch status:', response.status);
-                const text = await response.text();
-                console.log('Session response raw:', text);
-
-                let data;
-                try {
-                    data = JSON.parse(text);
-                } catch (e) {
-                    console.error('Failed to parse session response:', e);
-                    throw new Error('Invalid JSON response');
-                }
-
-                console.log('Session response data:', data);
-
-                if (response.ok && data.username) {
-                    console.log('Session valid, username:', data.username);
-                    return data.username;
-                } else {
-                    console.log('No valid session, reason:', data.error || 'No username');
-                    return null;
-                }
-            } catch (error) {
-                console.error(`Session check attempt ${attempt} error:`, error.message, error.stack);
-                return null;
-            }
-        }
-
-        // Poll session status until success or timeout
-        async function checkSession() {
-            const maxAttempts = 5;
-            const initialDelay = 500; // Reduced from 2000ms
-            const retryDelay = 1000; // Reduced from 2000ms
-            let attempt = 1;
-
-            console.log('Starting session polling at', new Date().toISOString());
-            await new Promise(resolve => setTimeout(resolve, initialDelay));
-
-            while (attempt <= maxAttempts) {
-                const username = await checkSessionSingle(attempt);
-                if (username) {
-                    updateUI(username);
-                    return;
-                }
-                console.log(`Attempt ${attempt} failed, retrying in ${retryDelay}ms`);
-                await new Promise(resolve => setTimeout(resolve, retryDelay));
-                attempt++;
-            }
-
-            console.error('Session polling failed after', maxAttempts, 'attempts');
-            updateUI(null);
-        }
-
-        // Manual session check for debugging
-        async function debugSession() {
-            console.log('Manual session check triggered at', new Date().toISOString());
-            const username = await checkSessionSingle('manual');
-            updateUI(username);
-        }
-
-        // Logout function
-        async function logout() {
-            try {
-                console.log('Initiating logout');
-                const response = await fetch(`${API_BASE_URL}/logout`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include'
-                });
-                console.log('Logout response status:', response.status);
-                if (response.ok) {
-                    console.log('Logout successful');
-                    window.location.href = '/user';
-                } else {
-                    console.error('Logout failed:', response.status);
-                }
-            } catch (error) {
-                console.error('Logout error:', error.message, error.stack);
-            }
-        }
-
-        // Debug chart data fetching
-        async function debugCharts() {
-            try {
-                console.log('Fetching chart data');
-                const feeResponse = await fetch(`${API_BASE_URL}/fee-history`, { credentials: 'include' });
-                const feeData = await feeResponse.json();
-                console.log('Fee history data:', feeData);
-
-                const mempoolResponse = await fetch(`${API_BASE_URL}/mempool-history`, { credentials: 'include' });
-                const mempoolData = await mempoolResponse.json();
-                console.log('Mempool history data:', mempoolData);
-
-                const txVolumeResponse = await fetch(`${API_BASE_URL}/tx-volume-history`, { credentials: 'include' });
-                const txVolumeData = await txVolumeResponse.json();
-                console.log('Transaction volume history data:', txVolumeData);
-            } catch (error) {
-                console.error('Chart data fetch error:', error.message, error.stack);
-            }
-        }
-
-        // Run on page load
+        // Fallback UI update
+        console.log('Dashboard inline script loaded');
         window.onload = () => {
-            console.log('Page loaded, initiating session check at', new Date().toISOString());
-            checkSession();
-            debugCharts();
-            const logoutBtn = document.getElementById('logout-btn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', logout);
-            }
-            const debugBtn = document.getElementById('debug-session-btn');
-            if (debugBtn) {
-                debugBtn.addEventListener('click', debugSession);
+            const username = localStorage.getItem('username');
+            if (username) {
+                const loginBtn = document.getElementById('login-btn');
+                const registerBtn = document.getElementById('register-btn');
+                const usernameDisplay = document.getElementById('username-display');
+                const logoutBtn = document.getElementById('logout-btn');
+                if (loginBtn) loginBtn.remove();
+                if (registerBtn) registerBtn.remove();
+                if (usernameDisplay) {
+                    usernameDisplay.classList.remove('hidden');
+                    usernameDisplay.classList.add('bg-gradient-to-r', 'from-green-400', 'to-blue-500', 'text-gray-900', 'px-4', 'py-2', 'rounded-lg');
+                    usernameDisplay.textContent = username;
+                }
+                if (logoutBtn) logoutBtn.classList.remove('hidden');
             }
         };
     </script>
