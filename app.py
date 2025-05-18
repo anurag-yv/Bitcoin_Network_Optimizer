@@ -1,11 +1,9 @@
-from flask import Flask, jsonify, render_template, send_from_directory
+from flask import Flask, jsonify, render_template, send_from_directory, request, session
 from flask_cors import CORS
 import requests
 import asyncio
 import websockets
 import json
-from bitcoinlib.wallets import Wallet
-from bitcoinlib.services.services import Service
 import logging
 from datetime import datetime, timedelta, timezone
 import random
@@ -13,9 +11,14 @@ import socket
 import threading
 import psutil
 import os
+import bcrypt
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": ["http://127.0.0.1:5500", "http://localhost:5000"]}})
+app.secret_key = os.urandom(24).hex()
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -25,9 +28,8 @@ logger = logging.getLogger(__name__)
 MEMPOOL_API = "https://mempool.space/api/v1/fees/recommended"
 MEMPOOL_MEMPOOL = "https://mempool.space/api/mempool"
 DIFFICULTY_API = "https://mempool.space/api/v1/difficulty-adjustment"
-SERVICE = Service()
 
-# Simulated default data for offline mode
+# Simulated default data
 DEFAULT_DATA = {
     "fees": {
         "fastestFee": 50,
@@ -40,37 +42,34 @@ DEFAULT_DATA = {
         "vsize": 1000000
     },
     "savings": 0.0005,
-    "difficulty": 88000000000000,  # Simulated difficulty in terahashes
+    "difficulty": 88000000000000,
     "adjustmentTime": datetime.now(timezone.utc).isoformat()
 }
 
-# Store historical data (in-memory for simplicity)
+# Store historical data
 fee_history = []
 mempool_history = []
 tx_volume_history = []
 
+# In-memory user store
+users = {}
+
 def fetch_mempool_data():
     try:
-        # Fetch fee data
         fee_response = requests.get(MEMPOOL_API, timeout=5)
         fee_response.raise_for_status()
         fee_data = fee_response.json()
 
-        # Fetch mempool data
         mempool_response = requests.get(MEMPOOL_MEMPOOL, timeout=5)
         mempool_response.raise_for_status()
         mempool_data = mempool_response.json()
 
-        # Fetch difficulty data
         difficulty_response = requests.get(DIFFICULTY_API, timeout=5)
         difficulty_response.raise_for_status()
         difficulty_data = difficulty_response.json()
 
-        # Calculate potential savings
         savings = (fee_data["fastestFee"] - fee_data["hourFee"]) * 0.0001
-
-        # Simulate transaction volume
-        volume = random.uniform(100, 1000)  # BTC, for demo purposes
+        volume = random.uniform(100, 1000)
 
         data = {
             "fees": {
@@ -88,19 +87,18 @@ def fetch_mempool_data():
             "adjustmentTime": difficulty_data.get("time", DEFAULT_DATA["adjustmentTime"])
         }
 
-        # Update historical data
         timestamp = datetime.now(timezone.utc).isoformat()
         fee_history.append({"timestamp": timestamp, "hourFee": fee_data["hourFee"]})
         mempool_history.append({"timestamp": timestamp, "count": mempool_data["count"]})
         tx_volume_history.append({"timestamp": timestamp, "volume": volume})
 
-        # Keep only last 24 hours of data
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
-        fee_history[:] = [entry for entry in fee_history if datetime.fromisoformat(entry["timestamp"]) > cutoff]
-        mempool_history[:] = [entry for entry in mempool_history if datetime.fromisoformat(entry["timestamp"]) > cutoff]
-        tx_volume_history[:] = [entry for entry in tx_volume_history if datetime.fromisoformat(entry["timestamp"]) > cutoff]
+        # Keep last 60 minutes for all histories
+        cutoff_60m = datetime.now(timezone.utc) - timedelta(minutes=60)
+        fee_history[:] = [entry for entry in fee_history if datetime.fromisoformat(entry["timestamp"]) > cutoff_60m]
+        mempool_history[:] = [entry for entry in mempool_history if datetime.fromisoformat(entry["timestamp"]) > cutoff_60m]
+        tx_volume_history[:] = [entry for entry in tx_volume_history if datetime.fromisoformat(entry["timestamp"]) > cutoff_60m]
 
-        logger.info(f"Successfully fetched mempool data: {json.dumps(data, indent=2)}")
+        logger.info(f"Fetched mempool data")
         return data
     except Exception as e:
         logger.error(f"Error fetching mempool data: {e}")
@@ -110,7 +108,6 @@ def fetch_mempool_data():
 def network_data():
     try:
         data = fetch_mempool_data()
-        logger.info(f"Network data served: {json.dumps(data, indent=2)}")
         return jsonify(data)
     except Exception as e:
         logger.error(f"Error in network-data endpoint: {e}")
@@ -120,7 +117,6 @@ def network_data():
 def fee_history_route():
     try:
         if fee_history:
-            # Ensure at least one low-fee entry for testing
             now = datetime.now(timezone.utc)
             low_fee_exists = any(entry["hourFee"] < 15 for entry in fee_history)
             if not low_fee_exists:
@@ -128,60 +124,70 @@ def fee_history_route():
                     "timestamp": (now - timedelta(minutes=30)).isoformat(),
                     "hourFee": 14
                 })
-            logger.info(f"Fee history served: {len(fee_history)} entries, low fee included: {low_fee_exists}")
             return jsonify(fee_history)
         else:
             now = datetime.now(timezone.utc)
             simulated_history = [
                 {
-                    "timestamp": (now - timedelta(hours=i)).isoformat(),
-                    "hourFee": random.randint(10, 50) if i != 0 else 14  # Low fee at current hour
-                } for i in range(24)
+                    "timestamp": (now - timedelta(minutes=i)).isoformat(),
+                    "hourFee": random.randint(10, 50) if i != 0 else 14
+                } for i in range(60)
             ]
-            logger.info(f"Simulated fee history served: {len(simulated_history)} entries")
             return jsonify(simulated_history)
     except Exception as e:
         logger.error(f"Error in fee-history endpoint: {e}")
-        now = datetime.now(timezone.utc)
-        simulated_history = [
+        return jsonify([
             {
-                "timestamp": (now - timedelta(hours=i)).isoformat(),
+                "timestamp": (datetime.now(timezone.utc) - timedelta(minutes=i)).isoformat(),
                 "hourFee": random.randint(10, 50) if i != 0 else 14
-            } for i in range(24)
-        ]
-        return jsonify(simulated_history), 200
+            } for i in range(60)
+        ]), 200
 
 @app.route('/mempool-history')
 def mempool_history_route():
     try:
-        logger.info(f"Mempool history served: {len(mempool_history)} entries")
-        return jsonify(mempool_history)
+        if mempool_history:
+            return jsonify(mempool_history)
+        else:
+            now = datetime.now(timezone.utc)
+            simulated_history = [
+                {
+                    "timestamp": (now - timedelta(minutes=i)).isoformat(),
+                    "count": random.randint(3000, 10000)
+                } for i in range(60)
+            ]
+            return jsonify(simulated_history)
     except Exception as e:
         logger.error(f"Error in mempool-history endpoint: {e}")
-        now = datetime.now(timezone.utc)
-        simulated_history = [
+        return jsonify([
             {
-                "timestamp": (now - timedelta(minutes=i*10)).isoformat(),
+                "timestamp": (datetime.now(timezone.utc) - timedelta(minutes=i)).isoformat(),
                 "count": random.randint(3000, 10000)
             } for i in range(60)
-        ]
-        return jsonify(simulated_history), 200
+        ]), 200
 
 @app.route('/tx-volume-history')
 def tx_volume_history_route():
     try:
-        logger.info(f"Transaction volume history served: {len(tx_volume_history)} entries")
-        return jsonify(tx_volume_history)
+        if tx_volume_history:
+            return jsonify(tx_volume_history)
+        else:
+            now = datetime.now(timezone.utc)
+            simulated_history = [
+                {
+                    "timestamp": (now - timedelta(minutes=i)).isoformat(),
+                    "volume": random.uniform(100, 1000)
+                } for i in range(60)
+            ]
+            return jsonify(simulated_history)
     except Exception as e:
         logger.error(f"Error in tx-volume-history endpoint: {e}")
-        now = datetime.now(timezone.utc)
-        simulated_history = [
+        return jsonify([
             {
-                "timestamp": (now - timedelta(hours=i)).isoformat(),
+                "timestamp": (datetime.now(timezone.utc) - timedelta(minutes=i)).isoformat(),
                 "volume": random.uniform(100, 1000)
-            } for i in range(24)
-        ]
-        return jsonify(simulated_history), 200
+            } for i in range(60)
+        ]), 200
 
 @app.route('/test-data')
 def test_data():
@@ -204,23 +210,22 @@ def test_data():
         }
         sample_fee_history = [
             {
-                "timestamp": (now - timedelta(hours=i)).isoformat(),
+                "timestamp": (now - timedelta(minutes=i)).isoformat(),
                 "hourFee": random.randint(10, 50) if i != 0 else 14
-            } for i in range(24)
+            } for i in range(60)
         ]
         sample_mempool_history = [
             {
-                "timestamp": (now - timedelta(minutes=i*10)).isoformat(),
+                "timestamp": (now - timedelta(minutes=i)).isoformat(),
                 "count": random.randint(3000, 10000)
             } for i in range(60)
         ]
         sample_tx_volume_history = [
             {
-                "timestamp": (now - timedelta(hours=i)).isoformat(),
+                "timestamp": (now - timedelta(minutes=i)).isoformat(),
                 "volume": random.uniform(100, 1000)
-            } for i in range(24)
+            } for i in range(60)
         ]
-        logger.info("Test data served")
         return jsonify({
             "network": sample_data,
             "fee_history": sample_fee_history,
@@ -232,13 +237,100 @@ def test_data():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/dashboard')
 def dashboard():
-    logger.info("Serving dashboard.html from templates")
     return render_template('dashboard.html')
+
+@app.route('/user')
+def user():
+    return render_template('user.html')
+
+@app.route('/session')
+def get_session():
+    try:
+        username = session.get('username')
+        logger.info(f"Session check: username={username}")
+        return jsonify({'username': username if username else None}), 200
+    except Exception as e:
+        logger.error(f"Error in session endpoint: {e}")
+        return jsonify({'username': None}), 200
+
+@app.route('/login', methods=['POST'])
+def login():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+
+        if not username or not password:
+            logger.warning("Login attempt with missing username or password")
+            return jsonify({'error': 'Username and password are required'}), 400
+
+        if username in users:
+            hashed_password = users[username]['password']
+            if bcrypt.checkpw(password.encode('utf-8'), hashed_password):
+                session['username'] = username
+                session.permanent = True
+                logger.info(f"Successful login for user: {username}")
+                return jsonify({'message': 'Login successful', 'username': username}), 200
+            else:
+                logger.warning(f"Invalid password for user: {username}")
+                return jsonify({'error': 'Invalid username or password'}), 401
+        else:
+            logger.warning(f"User not found: {username}")
+            return jsonify({'error': 'Invalid username or password'}), 401
+    except Exception as e:
+        logger.error(f"Error in login endpoint: {e}")
+        return jsonify({'error': 'Server error'}), 500
+
+@app.route('/logout', methods=['POST'])
+def logout():
+    try:
+        username = session.get('username')
+        session.clear()
+        logger.info(f"Successful logout for user: {username}")
+        return jsonify({'message': 'Logout successful'}), 200
+    except Exception as e:
+        logger.error(f"Error in logout endpoint: {e}")
+        return jsonify({'error': 'Server error'}), 500
+
+@app.route('/register', methods=['POST'])
+def register():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        confirm_password = data.get('confirm_password')
+
+        if not username or not password or not confirm_password:
+            logger.warning("Registration attempt with missing fields")
+            return jsonify({'error': 'All fields are required'}), 400
+
+        if password != confirm_password:
+            logger.warning("Registration attempt with mismatched passwords")
+            return jsonify({'error': 'Passwords do not match'}), 400
+
+        if username in users:
+            logger.warning(f"Registration attempt with existing username: {username}")
+            return jsonify({'error': 'Username already exists'}), 400
+
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        users[username] = {'password': hashed_password}
+        logger.info(f"Successful registration for user: {username}")
+        return jsonify({'message': 'Registration successful, please login'}), 201
+    except Exception as e:
+        logger.error(f"Error in register endpoint: {e}")
+        return jsonify({'error': 'Server error'}), 500
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'Server is running'}), 200
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):
-    logger.info(f"Serving static file: {filename}")
     return send_from_directory('static', filename)
 
 async def websocket_handler(websocket, path):
@@ -246,7 +338,6 @@ async def websocket_handler(websocket, path):
         while True:
             data = fetch_mempool_data()
             await websocket.send(json.dumps(data))
-            logger.info("WebSocket data sent")
             await asyncio.sleep(60)
     except websockets.exceptions.ConnectionClosed:
         logger.info("WebSocket connection closed")
@@ -262,7 +353,6 @@ async def start_websocket_server(port=8765):
         except socket.error as e:
             logger.warning(f"Port {port} already in use: {e}")
             if port == 8765:
-                logger.info("Trying alternative port 8766")
                 return await start_websocket_server(port=8766)
             return
 
@@ -284,18 +374,16 @@ def free_port(port):
             if conn.laddr.port == port and conn.pid:
                 try:
                     proc = psutil.Process(conn.pid)
-                    logger.info(f"Terminating process {conn.pid} using port ${port}")
                     proc.terminate()
                     proc.wait(timeout=3)
                 except psutil.NoSuchProcess:
-                    logger.warning(f"Process ${conn.pid} using port ${port} no longer exists")
+                    pass
                 except Exception as e:
-                    logger.error(f"Error terminating process on port ${port}: ${e}")
+                    logger.error(f"Error terminating process on port {port}: {e}")
     except Exception as e:
-        logger.error(f"Error freeing port ${port}: ${e}")
+        logger.error(f"Error freeing port {port}: {e}")
 
 if __name__ == '__main__':
-    # Free ports 8765 and 8766
     free_port(8765)
     free_port(8766)
     try:
@@ -305,7 +393,7 @@ if __name__ == '__main__':
         websocket_thread = threading.Thread(target=run_websocket_server, daemon=True)
         websocket_thread.start()
     except socket.error as e:
-        logger.warning(f"WebSocket server not started, port 8765 already in use: ${e}")
+        logger.warning(f"WebSocket server not started, port 8765 already in use: {e}")
         free_port(8766)
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -314,6 +402,6 @@ if __name__ == '__main__':
             websocket_thread = threading.Thread(target=run_websocket_server, daemon=True)
             websocket_thread.start()
         except socket.error as e:
-            logger.warning(f"WebSocket server not started, port 8766 already in use: ${e}")
+            logger.warning(f"WebSocket server not started, port 8766 already in use: {e}")
     
     app.run(debug=False, host='0.0.0.0', port=5000)

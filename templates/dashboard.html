@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bitcoin Network Optimizer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.3.0/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.1/dist/chartjs-plugin-annotation.min.js"></script>
     <style>
         .gradient-card {
             background: linear-gradient(145deg, #1f2937, #111827);
@@ -23,17 +24,31 @@
         }
         canvas {
             border-radius: 8px;
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .h-96 {
+            height: 24rem;
         }
     </style>
 </head>
 <body class="bg-gray-900 text-gray-100">
     <div class="container mx-auto px-4 py-8">
         <!-- Header -->
-        <div class="text-center mb-12">
-            <h1 class="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
-                Bitcoin Network Optimizer
-            </h1>
-            <p class="text-gray-400">Real-Time Transaction Management & Network Insights</p>
+        <div class="flex justify-between items-center mb-12">
+            <div class="text-center flex-1">
+                <h1 class="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
+                    Bitcoin Network Optimizer
+                </h1>
+                <p class="text-gray-400">Real-Time Transaction Management & Network Insights</p>
+            </div>
+            <div id="auth-section" class="space-x-4">
+                <a href="user.html" id="login-btn" class="bg-gradient-to-r from-green-400 to-blue-500 text-gray-900 px-4 py-2 rounded-lg hover:from-green-500 hover:to-blue-600 transition">Login</a>
+                <a href="user.html" id="register-btn" class="bg-gray-700 text-gray-100 px-4 py-2 rounded-lg hover:bg-gray-600 transition">Register</a>
+                <span id="username-display" class="text-gray-100 px-4 py-2 hidden"></span>
+                <button id="logout-btn" class="bg-red-600 text-gray-100 px-4 py-2 rounded-lg hover:bg-red-700 transition hidden">Logout</button>
+                <button id="debug-session-btn" class="bg-yellow-600 text-gray-900 px-4 py-2 rounded-lg hover:bg-yellow-700 transition hidden">Debug Session</button>
+            </div>
         </div>
 
         <!-- Problem-Solving Features Grid -->
@@ -60,11 +75,11 @@
             <div class="gradient-card p-6 rounded-xl">
                 <h3 class="text-xl font-bold mb-4">Smart Scheduler</h3>
                 <div class="mb-4">
-                    <div class="text-sm text-gray-400 mb-2">Optimal Transaction Window</div>
+                    <div class="text-sm text-gray-400 mb-2">Last Low-Fee Window</div>
                     <div id="optimalWindow" class="text-2xl font-mono text-yellow-500">-</div>
                 </div>
                 <div class="text-sm text-gray-400">
-                    Next Low-Fee Period in: <span id="nextLowFee" class="text-yellow-500">-</span>
+                    Time Since Low Fee: <span id="nextLowFee" class="text-yellow-500">-</span>
                 </div>
             </div>
 
@@ -107,7 +122,7 @@
         <div class="grid lg:grid-cols-2 gap-6 mb-8">
             <!-- Fee Heatmap -->
             <div class="gradient-card p-6 rounded-xl">
-                <h3 class="text-xl font-bold mb-4">Fee Heatmap (24h)</h3>
+                <h3 class="text-xl font-bold mb-4">Fee Heatmap (60m)</h3>
                 <div class="h-96">
                     <canvas id="feeHeatmap"></canvas>
                 </div>
@@ -123,7 +138,7 @@
 
         <!-- Transaction Volume Chart -->
         <div class="gradient-card p-6 rounded-xl mb-8">
-            <h3 class="text-xl font-bold mb-4">Transaction Volume (24h)</h3>
+            <h3 class="text-xl font-bold mb-4">Transaction Volume (60m)</h3>
             <div class="h-96">
                 <canvas id="txVolumeChart"></canvas>
             </div>
@@ -164,5 +179,161 @@
     </div>
 
     <script src="/static/app.js"></script>
+    <script>
+        // Base URL for API requests
+        const API_BASE_URL = 'http://localhost:5000';
+
+        // Update UI based on session state
+        function updateUI(username) {
+            const loginBtn = document.getElementById('login-btn');
+            const registerBtn = document.getElementById('register-btn');
+            const usernameDisplay = document.getElementById('username-display');
+            const logoutBtn = document.getElementById('logout-btn');
+            const debugBtn = document.getElementById('debug-session-btn');
+
+            if (username) {
+                console.log('Updating UI for logged-in user:', username);
+                loginBtn.classList.add('hidden');
+                registerBtn.classList.add('hidden');
+                usernameDisplay.classList.remove('hidden');
+                logoutBtn.classList.remove('hidden');
+                debugBtn.classList.add('hidden');
+                usernameDisplay.textContent = `Welcome, ${username}`;
+            } else {
+                console.log('Updating UI for logged-out state');
+                loginBtn.classList.remove('hidden');
+                registerBtn.classList.remove('hidden');
+                usernameDisplay.classList.add('hidden');
+                logoutBtn.classList.add('hidden');
+                debugBtn.classList.remove('hidden');
+                usernameDisplay.textContent = '';
+            }
+        }
+
+        // Check session status
+        async function checkSessionSingle(attempt = 1) {
+            try {
+                console.log(`Session check attempt ${attempt} at`, new Date().toISOString());
+                const response = await fetch(`${API_BASE_URL}/session`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+
+                console.log('Session fetch status:', response.status);
+                const text = await response.text();
+                console.log('Session response raw:', text);
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    console.error('Failed to parse session response:', e);
+                    throw new Error('Invalid JSON response');
+                }
+
+                console.log('Session response data:', data);
+
+                if (response.ok && data.username) {
+                    console.log('Session valid, username:', data.username);
+                    return data.username;
+                } else {
+                    console.log('No valid session, reason:', data.error || 'No username');
+                    return null;
+                }
+            } catch (error) {
+                console.error(`Session check attempt ${attempt} error:`, error.message, error.stack);
+                return null;
+            }
+        }
+
+        // Poll session status until success or timeout
+        async function checkSession() {
+            const maxAttempts = 5;
+            const initialDelay = 500; // Reduced from 2000ms
+            const retryDelay = 1000; // Reduced from 2000ms
+            let attempt = 1;
+
+            console.log('Starting session polling at', new Date().toISOString());
+            await new Promise(resolve => setTimeout(resolve, initialDelay));
+
+            while (attempt <= maxAttempts) {
+                const username = await checkSessionSingle(attempt);
+                if (username) {
+                    updateUI(username);
+                    return;
+                }
+                console.log(`Attempt ${attempt} failed, retrying in ${retryDelay}ms`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+                attempt++;
+            }
+
+            console.error('Session polling failed after', maxAttempts, 'attempts');
+            updateUI(null);
+        }
+
+        // Manual session check for debugging
+        async function debugSession() {
+            console.log('Manual session check triggered at', new Date().toISOString());
+            const username = await checkSessionSingle('manual');
+            updateUI(username);
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                console.log('Initiating logout');
+                const response = await fetch(`${API_BASE_URL}/logout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include'
+                });
+                console.log('Logout response status:', response.status);
+                if (response.ok) {
+                    console.log('Logout successful');
+                    window.location.href = '/user';
+                } else {
+                    console.error('Logout failed:', response.status);
+                }
+            } catch (error) {
+                console.error('Logout error:', error.message, error.stack);
+            }
+        }
+
+        // Debug chart data fetching
+        async function debugCharts() {
+            try {
+                console.log('Fetching chart data');
+                const feeResponse = await fetch(`${API_BASE_URL}/fee-history`, { credentials: 'include' });
+                const feeData = await feeResponse.json();
+                console.log('Fee history data:', feeData);
+
+                const mempoolResponse = await fetch(`${API_BASE_URL}/mempool-history`, { credentials: 'include' });
+                const mempoolData = await mempoolResponse.json();
+                console.log('Mempool history data:', mempoolData);
+
+                const txVolumeResponse = await fetch(`${API_BASE_URL}/tx-volume-history`, { credentials: 'include' });
+                const txVolumeData = await txVolumeResponse.json();
+                console.log('Transaction volume history data:', txVolumeData);
+            } catch (error) {
+                console.error('Chart data fetch error:', error.message, error.stack);
+            }
+        }
+
+        // Run on page load
+        window.onload = () => {
+            console.log('Page loaded, initiating session check at', new Date().toISOString());
+            checkSession();
+            debugCharts();
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', logout);
+            }
+            const debugBtn = document.getElementById('debug-session-btn');
+            if (debugBtn) {
+                debugBtn.addEventListener('click', debugSession);
+            }
+        };
+    </script>
 </body>
 </html>

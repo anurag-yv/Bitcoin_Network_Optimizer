@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Dashboard - Welcome</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+            animation: spin 10s linear infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .bg-pulse {
+            animation: pulse 5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 flex items-center justify-center min-h-screen">
+    <div class="text-center">
+        <!-- Animated Bitcoin Logo -->
+        <div class="mb-8">
+            <svg class="w-24 h-24 mx-auto text-yellow-500 animate-spin-slow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c6.627 0 12 5.373 12 12s-5.373 12-12 12S0 18.627 0 12 5.373 0 12 0zm-.75 4.5v1.5c1.104 0 2 .896 2 2h1.5c0-1.933-1.567-3.5-3.5-3.5zm0 12v1.5c1.933 0 3.5-1.567 3.5-3.5h-1.5c0 1.104-.896 2-2 2zm-1.5-9.5v6h1.5v-1.5h1.5v1.5h1.5v-3h-3v-1h3v-1.5h-4.5zm0-1.5h4.5v-1.5h-4.5v1.5z"/>
+            </svg>
+        </div>
+        <!-- Heading -->
+        <h1 class="text-4xl md:text-5xl font-bold text-white mb-4">Welcome to Your Bitcoin Transaction Dashboard</h1>
+        <p class="text-lg text-gray-400 mb-6">Optimize your transactions with real-time insights</p>
+        <!-- Progress Bar -->
+        <div class="w-64 mx-auto bg-gray-700 rounded-full h-2.5">
+            <div id="progressBar" class="bg-yellow-500 h-2.5 rounded-full" style="width: 0%; transition: width 10s linear;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Start progress bar animation
+        document.getElementById('progressBar').style.width = '100%';
+
+        // Redirect after 10 seconds
+        setTimeout(() => {
+            window.location.href = 'dashboard.html';
+        }, 10000);
+    </script>
+</body>
+</html>

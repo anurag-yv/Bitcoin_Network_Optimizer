@@ -1,3 +1,4 @@
+const API_BASE_URL = 'http://localhost:5000';
 let feeChart, mempoolChart, txVolumeChart;
 let lowFeeTimeout;
 let ws;
@@ -56,8 +57,8 @@ function updateDashboard(data) {
         document.getElementById('recommendedFee').textContent = `${data.fees.hourFee} sat/vB`;
         document.getElementById('feeSavings').textContent = `${data.savings.toFixed(6)} BTC`;
         document.getElementById('mempoolSize').textContent = `${data.mempool.count.toLocaleString()} tx`;
-        document.getElementById('networkDifficulty').textContent = `${data.difficulty.toLocaleString()} T`;
-        document.getElementById('difficultyAdjustment').textContent = `${new Date(data.adjustmentTime).toLocaleDateString()}`;
+        document.getElementById('networkDifficulty').textContent = `${(data.difficulty / 1e12).toLocaleString()} T`;
+        document.getElementById('difficultyAdjustment').textContent = new Date(data.adjustmentTime).toLocaleDateString();
         document.getElementById('hashRate').textContent = `${(Math.random() * 350).toFixed(2)} EH/s`;
         document.getElementById('txRate').textContent = `${Math.floor(Math.random() * 10000)} tx/hr`;
 
@@ -71,7 +72,7 @@ function updateDashboard(data) {
 
 async function fetchNetworkData() {
     try {
-        const res = await fetch('/network-data');
+        const res = await fetch(`${API_BASE_URL}/network-data`, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const data = await res.json();
         if (!data.fees || !data.mempool) {
@@ -88,20 +89,25 @@ async function fetchNetworkData() {
 
 async function loadFeeHistory() {
     try {
-        const res = await fetch('/fee-history');
+        const res = await fetch(`${API_BASE_URL}/fee-history`, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const history = await res.json();
+        if (!Array.isArray(history) || history.length === 0) {
+            console.error('Empty or invalid fee history:', history);
+            throw new Error('Invalid fee history');
+        }
         const dataPoints = history.map(entry => ({
             x: entry.timestamp,
             y: entry.hourFee
-        }));
+        })).filter(point => point.x && !isNaN(new Date(point.x).getTime()));
+        console.log('Fee history data points:', dataPoints);
         feeChart.data.datasets[0].data = dataPoints;
         feeChart.update();
     } catch (error) {
         console.error('Error loading fee history:', error);
         const now = new Date();
-        feeChart.data.datasets[0].data = Array.from({length: 24}, (_, i) => ({
-            x: new Date(now - i * 3600 * 1000).toISOString(),
+        feeChart.data.datasets[0].data = Array.from({length: 60}, (_, i) => ({
+            x: new Date(now - i * 60 * 1000).toISOString(),
             y: 10 + Math.random() * 40
         }));
         feeChart.update();
@@ -110,20 +116,25 @@ async function loadFeeHistory() {
 
 async function loadMempoolHistory() {
     try {
-        const res = await fetch('/mempool-history');
+        const res = await fetch(`${API_BASE_URL}/mempool-history`, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const history = await res.json();
+        if (!Array.isArray(history) || history.length === 0) {
+            console.error('Empty or invalid mempool history:', history);
+            throw new Error('Invalid mempool history');
+        }
         const dataPoints = history.map(entry => ({
             x: entry.timestamp,
             y: entry.count
-        }));
+        })).filter(point => point.x && !isNaN(new Date(point.x).getTime()));
+        console.log('Mempool history data points:', dataPoints);
         mempoolChart.data.datasets[0].data = dataPoints;
         mempoolChart.update();
     } catch (error) {
         console.error('Error loading mempool history:', error);
         const now = new Date();
         mempoolChart.data.datasets[0].data = Array.from({length: 60}, (_, i) => ({
-            x: new Date(now - i * 10 * 60 * 1000).toISOString(),
+            x: new Date(now - i * 60 * 1000).toISOString(),
             y: 3000 + Math.random() * 7000
         }));
         mempoolChart.update();
@@ -132,20 +143,25 @@ async function loadMempoolHistory() {
 
 async function loadTxVolumeHistory() {
     try {
-        const res = await fetch('/tx-volume-history');
+        const res = await fetch(`${API_BASE_URL}/tx-volume-history`, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const history = await res.json();
+        if (!Array.isArray(history) || history.length === 0) {
+            console.error('Empty or invalid transaction volume history:', history);
+            throw new Error('Invalid transaction volume history');
+        }
         const dataPoints = history.map(entry => ({
             x: entry.timestamp,
             y: entry.volume
-        }));
+        })).filter(point => point.x && !isNaN(new Date(point.x).getTime()));
+        console.log('Transaction volume history data points:', dataPoints);
         txVolumeChart.data.datasets[0].data = dataPoints;
         txVolumeChart.update();
     } catch (error) {
         console.error('Error loading transaction volume history:', error);
         const now = new Date();
-        txVolumeChart.data.datasets[0].data = Array.from({length: 24}, (_, i) => ({
-            x: new Date(now - i * 3600 * 1000).toISOString(),
+        txVolumeChart.data.datasets[0].data = Array.from({length: 60}, (_, i) => ({
+            x: new Date(now - i * 60 * 1000).toISOString(),
             y: 100 + Math.random() * 900
         }));
         txVolumeChart.update();
@@ -212,7 +228,7 @@ function initCharts() {
                 scales: {
                     x: { 
                         type: 'time', 
-                        time: { unit: 'hour' }, 
+                        time: { unit: 'minute' }, 
                         grid: { color: '#374151' },
                         title: { display: true, text: 'Time', color: '#D1D5DB' }
                     },
@@ -322,7 +338,7 @@ function initCharts() {
                 scales: {
                     x: { 
                         type: 'time', 
-                        time: { unit: 'hour' }, 
+                        time: { unit: 'minute' }, 
                         grid: { color: '#374151' },
                         title: { display: true, text: 'Time', color: '#D1D5DB' }
                     },
@@ -358,23 +374,18 @@ function simulateTransaction() {
 
 async function determineNextLowFeeWindow() {
     try {
-        console.log('Fetching fee history from http://localhost:5000/fee-history');
-        const res = await fetch('http://localhost:5000/fee-history');
+        const res = await fetch(`${API_BASE_URL}/fee-history`, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
         const history = await res.json();
-        console.log('Fee history received:', history);
-
         if (!Array.isArray(history) || history.length === 0) {
-            console.error('Invalid or empty fee history:', history);
-            throw new Error('Invalid fee history data');
+            console.error('Empty or invalid fee history:', history);
+            throw new Error('Invalid fee history');
         }
 
         const now = new Date();
         const lowFeeEntries = history
             .filter(h => h.hourFee < 15)
-            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-
-        console.log('Low fee entries (hourFee < 15):', lowFeeEntries);
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Latest first
 
         const optimalWindow = document.getElementById('optimalWindow');
         const nextLowFee = document.getElementById('nextLowFee');
@@ -385,16 +396,16 @@ async function determineNextLowFeeWindow() {
         }
 
         if (lowFeeEntries.length > 0) {
-            const lowFeeEntry = lowFeeEntries[0]; // Earliest low-fee period
+            const lowFeeEntry = lowFeeEntries[0]; // Latest low-fee period
             const ts = new Date(lowFeeEntry.timestamp);
-            const mins = Math.round((ts - now) / 60000);
-            console.log(`Low fee found at ${ts.toLocaleTimeString()}, ${mins} min from now, hourFee: ${lowFeeEntry.hourFee}`);
+            const mins = Math.round((now - ts) / 60000); // Time since low fee
+            console.log(`Low fee found at ${ts.toLocaleTimeString()}, ${mins} min ago, hourFee: ${lowFeeEntry.hourFee}`);
 
-            optimalWindow.textContent = ts.toLocaleTimeString();
-            nextLowFee.textContent = mins >= 0 ? `${mins} min` : `Now`;
+            optimalWindow.textContent = ts.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            nextLowFee.textContent = mins >= 0 ? `${mins} min ago` : `Now`;
         } else {
             console.log('No low fee period found in history');
-            optimalWindow.textContent = `Not in 24h`;
+            optimalWindow.textContent = `Not in 60m`;
             nextLowFee.textContent = `--`;
         }
     } catch (error) {
@@ -402,7 +413,7 @@ async function determineNextLowFeeWindow() {
         const optimalWindow = document.getElementById('optimalWindow');
         const nextLowFee = document.getElementById('nextLowFee');
         if (optimalWindow && nextLowFee) {
-            optimalWindow.textContent = `Not in 24h`;
+            optimalWindow.textContent = `Not in 60m`;
             nextLowFee.textContent = `--`;
         }
     }

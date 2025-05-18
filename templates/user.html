@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User - Bitcoin Network Optimizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(145deg, #1f2937, #111827);
+        }
+        .form-card {
+            background: #1f2937;
+            border: 1px solid #374151;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .form-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 gradient-bg">
+    <div class="container mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-12">
+            <div class="text-center flex-1">
+                <h1 class="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-blue-500 bg-clip-text text-transparent">
+                    Bitcoin Network Optimizer
+                </h1>
+                <p class="text-gray-400">User Authentication</p>
+            </div>
+        </div>
+
+        <div class="max-w-md mx-auto">
+            <!-- Login Form -->
+            <div id="login-form" class="form-card p-6 rounded-xl mb-6">
+                <h2 class="text-2xl font-bold mb-4">Login</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="login-username" class="block text-sm text-gray-400">Username</label>
+                        <input type="text" id="login-username" class="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-green-500">
+                    </div>
+                    <div>
+                        <label for="login-password" class="block text-sm text-gray-400">Password</label>
+                        <input type="password" id="login-password" class="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-green-500">
+                    </div>
+                    <button onclick="login()" class="w-full bg-gradient-to-r from-green-400 to-blue-500 text-gray-900 p-3 rounded-lg hover:from-green-500 hover:to-blue-600 transition">Login</button>
+                </div>
+                <p id="login-error" class="text-red-500 text-sm mt-2 hidden"></p>
+                <p class="text-gray-400 text-sm mt-4">Don't have an account? <a href="#" onclick="showRegister()" class="text-green-400 hover:underline">Register</a></p>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-form" class="form-card p-6 rounded-xl hidden">
+                <h2 class="text-2xl font-bold mb-4">Register</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label for="register-username" class="block text-sm text-gray-400">Username</label>
+                        <input type="text" id="register-username" class="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-green-500">
+                    </div>
+                    <div>
+                        <label for="register-password" class="block text-sm text-gray-400">Password</label>
+                        <input type="password" id="register-password" class="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-green-500">
+                    </div>
+                    <div>
+                        <label for="confirm-password" class="block text-sm text-gray-400">Confirm Password</label>
+                        <input type="password" id="confirm-password" class="w-full p-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-100 focus:outline-none focus:border-green-500">
+                    </div>
+                    <button onclick="register()" class="w-full bg-gradient-to-r from-green-400 to-blue-500 text-gray-900 p-3 rounded-lg hover:from-green-500 hover:to-blue-600 transition">Register</button>
+                </div>
+                <p id="register-error" class="text-red-500 text-sm mt-2 hidden"></p>
+                <p class="text-gray-400 text-sm mt-4">Already have an account? <a href="#" onclick="showLogin()" class="text-green-400 hover:underline">Login</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000';
+
+        function showRegister() {
+            document.getElementById('login-form').classList.add('hidden');
+            document.getElementById('register-form').classList.remove('hidden');
+            clearErrors();
+        }
+
+        function showLogin() {
+            document.getElementById('register-form').classList.add('hidden');
+            document.getElementById('login-form').classList.remove('hidden');
+            clearErrors();
+        }
+
+        function clearErrors() {
+            document.getElementById('login-error').classList.add('hidden');
+            document.getElementById('register-error').classList.add('hidden');
+            document.getElementById('login-error').textContent = '';
+            document.getElementById('register-error').textContent = '';
+        }
+
+        async function login() {
+            try {
+                const username = document.getElementById('login-username').value;
+                const password = document.getElementById('login-password').value;
+                const errorElement = document.getElementById('login-error');
+
+                if (!username || !password) {
+                    errorElement.textContent = 'Username and password are required';
+                    errorElement.classList.remove('hidden');
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                console.log('Login response:', { status: response.status, data });
+
+                if (response.ok) {
+                    // Delay redirect to ensure session cookie is set
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 500);
+                } else {
+                    errorElement.textContent = data.error || 'Login failed';
+                    errorElement.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Login error:', error.message, error.stack);
+                document.getElementById('login-error').textContent = 'Server error';
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        async function register() {
+            try {
+                const username = document.getElementById('register-username').value;
+                const password = document.getElementById('register-password').value;
+                const confirmPassword = document.getElementById('confirm-password').value;
+                const errorElement = document.getElementById('register-error');
+
+                if (!username || !password || !confirmPassword) {
+                    errorElement.textContent = 'All fields are required';
+                    errorElement.classList.remove('hidden');
+                    return;
+                }
+
+                if (password !== confirmPassword) {
+                    errorElement.textContent = 'Passwords do not match';
+                    errorElement.classList.remove('hidden');
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ username, password, confirm_password: confirmPassword })
+                });
+
+                const data = await response.json();
+                console.log('Register response:', { status: response.status, data });
+
+                if (response.ok) {
+                    showLogin();
+                    document.getElementById('login-error').textContent = 'Registration successful, please login';
+                    document.getElementById('login-error').classList.remove('hidden');
+                } else {
+                    errorElement.textContent = data.error || 'Registration failed';
+                    errorElement.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Register error:', error.message, error.stack);
+                document.getElementById('register-error').textContent = 'Server error';
+                document.getElementById('register-error').classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
