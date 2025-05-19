@@ -1,123 +1,174 @@
-Bitcoin Network Optimizer Dashboard
-A full-stack web application built for the Bitcoin 2025 Hackathon to visualize real-time Bitcoin network data, helping users optimize transaction timing and minimize fees. Developed from April 7 to May 20, 2025, this project provides an intuitive dashboard with mempool size, transaction fees, and network difficulty insights, powered by the mempool.space API and WebSocket updates.
-Table of Contents
+🚀 Bitcoin Network Optimizer Dashboard
+Welcome to the Bitcoin Network Optimizer Dashboard, a full-stack web app built for the Bitcoin 2025 Hackathon 🎉! This project empowers Bitcoin users to optimize transaction timing and minimize fees by visualizing real-time network data, such as mempool size, fees, and difficulty adjustments, using the mempool.space API and WebSocket updates. Developed from April 7 to May 20, 2025, it’s a user-friendly tool for traders, miners, and enthusiasts in the Bitcoin ecosystem.
 
+📑 Table of Contents
+
+What It Does
 Features
 Tech Stack
 Installation
 Usage
 Project Structure
-Challenges and Solutions
+Challenges & Solutions
 Third-Party Licenses
 Contributing
 License
 Contact
 
-Features
 
-Real-Time Data Visualization: Displays mempool transaction count, hourly fees, and transaction volume using Chart.js, updated via WebSocket servers (ports 8765/8766).
-User Authentication: Secure login, registration, and logout with bcrypt password hashing and Flask session management.
-Responsive UI: Styled with Tailwind CSS for a clean, mobile-friendly experience.
-Bitcoin Insights: Helps users time transactions to save fees by analyzing mempool.space API data (e.g., fee dips, network congestion).
-Robust Backend: Flask handles API requests, WebSocket streams, and user sessions with logging for debugging.
+🌟 What It Does
+Bitcoin transactions can be costly and slow during network congestion. The Bitcoin Network Optimizer Dashboard solves this by providing real-time insights into:
 
-Tech Stack
+Mempool size: Understand network congestion.
+Transaction fees: Identify low-fee windows for cost savings.
+Difficulty adjustments: Monitor mining trends.
 
-Backend: Flask, Python, bcrypt, WebSocket (websockets library), psutil, requests
-Frontend: HTML, JavaScript, Chart.js, Tailwind CSS
-APIs: mempool.space for fees, mempool, and difficulty adjustment data
-Development Tools: VS Code, Git, Python 3.8+
+With a secure login system and responsive charts, it helps users make data-driven decisions to enhance Bitcoin’s usability. Check out the demo video (replace with your video URL after uploading)!
 
-Installation
-Clone the repository and set up the environment:
-git clone https://github.com/anurag-yv/Bitcoin_Network_Optimizer
+✨ Features
+Click to Explore Features
 
-Install dependencies:
+📊 Real-Time Charts: Visualize mempool count, hourly fees, and transaction volume with Chart.js, updated every 60 seconds via WebSocket (ports 8765/8766).
+🔐 Secure Authentication: Login, register, and logout with bcrypt password hashing and Flask sessions.
+📱 Responsive Design: Tailwind CSS ensures a seamless experience on desktop and mobile.
+⚡ Bitcoin Optimization: Analyze fee dips and mempool trends to time transactions effectively.
+🛠️ Robust Backend: Flask handles API requests, WebSocket streams, and logging for reliability.
+
+
+🛠️ Tech Stack
+
+
+
+Category
+Tools
+
+
+
+Backend
+Flask, Python, bcrypt, WebSocket, psutil, requests
+
+
+Frontend
+HTML, JavaScript, Chart.js, Tailwind CSS
+
+
+APIs
+mempool.space (fees, mempool, difficulty)
+
+
+Dev Tools
+VS Code, Git, Python 3.8+
+
+
+
+🔧 Installation
+Click for Setup Instructions
+
+Clone the Repository:
+git clone https://github.com/anurag-yv/Bitcoin_Network_Optimizer.git
+cd bitcoin-network-optimizer
+
+
+Install Dependencies:
 pip install -r requirements.txt
 
-Requirements:
-
-Python 3.8 or higher
-Dependencies listed in requirements.txt:
-flask
-flask-cors
-requests
-websockets
-psutil
-bcrypt
+Ensure Python 3.8+ is installed. Dependencies include:
+flask==2.3.3
+flask-cors==4.0.0
+requests==2.31.0
+websockets==12.0
+psutil==5.9.5
+bcrypt==4.0.1
 
 
+Verify Files:
+Ensure app.py, templates/ (index.html, user.html, dashboard.html), and static/ (app.js) are present.
 
-Usage
 
-Run the Flask application:
+
+🚀 Usage
+Click to Run the App
+
+Start the Server:
 python app.py
 
 
-The server starts at http://localhost:5000.
-WebSocket servers run on ws://localhost:8765 or ws://localhost:8766 (failover).
+Flask runs on http://localhost:5000.
+WebSocket servers use ws://localhost:8765 or ws://localhost:8766.
 
 
-Open http://localhost:5000/user or live server in a browser (Chrome/Firefox, non-incognito).
+Access the App:
 
-Register: Create a user (e.g., username: testuser, password: password123).
-
-Login: Log in to access the dashboard.
-
-Dashboard: View real-time charts for mempool size, fees, and transaction volume. Use the data to optimize Bitcoin transactions (e.g., send during low-fee periods).
-
-Logout: Securely log out to clear the session.
+Open http://localhost:5000/user in Chrome/Firefox (non-incognito).
+Register: Create a user (e.g., testuser, password123).
+Login: Access the dashboard with charts and “Welcome, testuser”.
+Explore: View real-time mempool and fee data to optimize transactions.
+Logout: Clear session securely.
 
 
-Note: Ensure ports 5000, 8765, and 8766 are free. The app automatically handles port conflicts by switching to 8766 if 8765 is in use.
-Project Structure
+Troubleshooting:
+
+Ensure ports 5000, 8765, and 8766 are free.
+Check Flask logs for errors (e.g., ERROR - Error in login endpoint).
+
+
+
+
+📂 Project Structure
 bitcoin-network-optimizer/
-├── static/                 # Static files (CSS, JS, images)
-│   ├── app.js             # Frontend logic and Chart.js integration
+├── static/                 # CSS, JS, images
+│   ├── app.js             # Chart.js and frontend logic
 │   
 ├── templates/              # HTML templates
 │   ├── index.html         # Homepage
-│   ├── user.html          # Login/register page
+│   ├── user.html          # Login/register
 │   └── dashboard.html     # Dashboard with charts
-├── app.py                 # Flask backend (API, WebSocket, auth)
-├── requirements.txt       # Python dependencies
+├── app.py                 # Flask backend
+├── requirements.txt       # Dependencies
 ├── README.md              # This file
-└── LICENSE                # MIT license
+├── LICENSE                # MIT License
+└── .gitignore             # Ignores venv/, __pycache__/
 
-Challenges and Solutions
-During the hackathon (April 7–May 20, 2025), I encountered and resolved:
 
-Server Error (HTTP 500) in Login: A TypeError in app.py’s /login endpoint was fixed by adding JSON validation and detailed logging (logger.info("Request JSON: {data}")). Ensured Content-Type: application/json in user.html’s fetch request.
-Dashboard 404: The /dashboard route failed due to a missing dashboard.html. Resolved by creating and placing dashboard.html in templates/, with error handling in app.py (try/except for TemplateNotFound).
-Session Persistence: Dynamic app.secret_key caused session issues. Fixed by using a static key (your-static-secret-key-12345).
-WebSocket Stability: Port conflicts on 8765 were addressed by implementing failover to 8766 using psutil and socket.
+🛡️ Challenges & Solutions
+Click to View Challenges
+Built during the Bitcoin 2025 Hackathon (April 7–May 20, 2025), I tackled:
 
-These solutions demonstrate robust problem-solving, aligning with the hackathon’s Routine Execution criterion.
-Third-Party Licenses
+🛑 Server Error (HTTP 500): Fixed a /login TypeError by validating JSON (request.get_json()) and adding detailed logging in app.py.
+🚫 Dashboard 404: Resolved by placing dashboard.html in templates/ and handling TemplateNotFound errors.
+🔑 Session Issues: Switched to a static app.secret_key for persistent sessions.
+🌐 WebSocket Conflicts: Implemented port failover (8765 to 8766) using psutil and socket.
 
-mempool.space API: Used under their terms for non-commercial, open-source projects. Data fetched for fees, mempool, and difficulty adjustment.
-bcrypt: Apache License 2.0, used for password hashing.
-Chart.js: MIT License, used for charts.
-Tailwind CSS: MIT License, used for styling.
-Flask, flask-cors, requests, websockets, psutil: Various open-source licenses (BSD, MIT, Apache), listed in requirements.txt.
+These solutions showcase robust debugging for the hackathon’s Routine Execution criterion.
 
-All third-party tools comply with the Bitcoin 2025 Hackathon’s terms for submissions.
-Contributing
-Contributions are welcome! To contribute:
+📜 Third-Party Licenses
 
-Fork the repository.
-Create a feature branch: git checkout -b feature/your-feature.
-Commit changes: git commit -m "Add your feature".
-Push to the branch: git push origin feature/your-feature.
+mempool.space API: Non-commercial use, per their terms.
+bcrypt: Apache License 2.0.
+Chart.js: MIT License.
+Tailwind CSS: MIT License.
+Flask, flask-cors, requests, websockets, psutil: BSD/MIT/Apache licenses.
+
+All comply with Bitcoin 2025 Hackathon and Devpost terms.
+
+🤝 Contributing
+Love Bitcoin and want to help? Here’s how:
+
+Fork the repo.
+Create a branch: git checkout -b feature/your-feature.
+Commit: git commit -m "Add your feature".
+Push: git push origin feature/your-feature.
 Open a pull request.
 
-Please follow the Code of Conduct and ensure tests pass (if added).
-License
+Follow the Code of Conduct (optional, add if desired).
+
+📄 License
 This project is licensed under the MIT License.
-Contact
+
+📬 Contact
 
 Author: Anurag Yadav
 GitHub: anurag-yv
-Email:anuragyadavmzp2006@gmail.com
+Email: anuragyadavmzp2006@gmail.com
 
-Built with 💻 and ⚡ for the Bitcoin 2025 Hackathon. Let’s make Bitcoin transactions smarter!
+Built with 💻 and ⚡ for the Bitcoin 2025 Hackathon. Let’s optimize Bitcoin together! 🚀
